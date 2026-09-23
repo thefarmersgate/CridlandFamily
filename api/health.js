@@ -88,7 +88,11 @@ async function handler(req) {
         if (bat[i] != null) return "";
         const [st, cap] = await Promise.all([deviceResource(d.id, "status"), deviceResource(d.id, "capabilities")]);
         const keys = (o) => Object.keys(o || {}).join(",") || "none";
-        return ` · status fields: ${keys(st)} · capability fields: ${keys(cap)}` +
+        // state is undocumented for cameras: show its shape, numbers kept
+        // (a battery level is a number), strings replaced by their type.
+        const peek = (v, depth = 0) => v === null || typeof v !== "object" ? (typeof v === "string" ? "str" : v)
+          : depth > 2 ? "{…}" : Object.fromEntries(Object.entries(v).map(([k, x]) => [k, peek(x, depth + 1)]));
+        return ` · status fields: ${keys(st)} · state: ${JSON.stringify(peek(st.state))} · capability fields: ${keys(cap)}` +
           (cap?.battery_status ? ` · battery_status: ${JSON.stringify(cap.battery_status)}` : "");
       }));
       devices = list.map((d, i) => ({
