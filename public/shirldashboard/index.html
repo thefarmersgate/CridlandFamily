@@ -204,6 +204,11 @@
   .gate input{font:inherit;font-size:26px;padding:16px 20px;border-radius:12px;width:min(420px,90vw);
     background:#121820;border:2px solid var(--line);color:var(--ink);text-align:center}
   .gate .err{color:var(--bad);font-weight:600;min-height:26px}
+  .lowbatt{position:absolute;right:44px;top:30px;z-index:11;display:inline-flex;align-items:center;gap:10px;
+    padding:9px 16px;border-radius:999px;background:rgba(40,10,8,.82);border:2px solid var(--bad);
+    font-size:19px;font-weight:700;color:#fff;text-shadow:none}
+  .lowbatt svg{width:26px;height:26px;color:var(--bad);flex:none}
+  body.asleep .lowbatt{display:none}
   .offline{position:absolute;left:44px;top:74px;z-index:11;font-size:18px;font-weight:700;color:var(--bad);
     text-shadow:0 2px 12px rgba(0,0,0,.95)}
   .live-stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#05080A}
@@ -241,6 +246,7 @@
     </div>
   </div>
 
+  <span class="lowbatt" id="lowbatt" hidden></span>
   <span class="offline" id="offline" hidden>No internet — showing the last pictures</span>
   <span class="wake" id="wake" hidden>Touch the screen to look around</span>
 
@@ -419,7 +425,7 @@
     }).then(function(j){
       if(!j) return;
       var first=!S; S=j; g("offline").hidden=true;
-      paintWeather(); paintDay(); paintMessageFrom(j);
+      paintWeather(); paintDay(); paintMessageFrom(j); paintBattery();
       if(first) buildCameras(); else refreshAges();
     }).catch(function(e){
       // Keep showing the last good render. A dashboard that blanks on a wobbly
@@ -593,6 +599,14 @@
         if(!m||!m.text||(m.expiresAt&&Date.now()>m.expiresAt)){ g("note").hidden=true; return; }
         g("note").hidden=false; g("notewho").textContent=m.who||""; g("notetxt").textContent=m.text;
       }).catch(function(){});
+  }
+  // "Needs charging" banner for any battery at or below the threshold.
+  function paintBattery(){
+    var low=(S&&S.lowBattery)||[], el=g("lowbatt");
+    if(!low.length){ el.hidden=true; return; }
+    el.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="17" height="10" rx="2"></rect><path d="M22 11v2"></path><path d="M6 10v4"></path></svg><span></span>';
+    el.querySelector("span").textContent=low.map(function(b){ return b.name+" battery "+b.battery+"%"; }).join(" · ")+" — needs charging";
+    el.hidden=false;
   }
   function paintMessageFrom(){ /* the message arrives via pollMessage */ }
 

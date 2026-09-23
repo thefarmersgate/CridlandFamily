@@ -1,7 +1,7 @@
 import { requireKiosk, json } from "../lib/auth.js";
 import { weather, describe } from "../lib/weather.js";
 import { calendar, photos, googleConfigured } from "../lib/google.js";
-import { CAMERAS, DOORBELL, STALE_MIN, CAPTURE_INTERVAL_MIN } from "../lib/cameras.js";
+import { CAMERAS, DOORBELL, STALE_MIN, CAPTURE_INTERVAL_MIN, LOW_BATTERY_PCT } from "../lib/cameras.js";
 import { cfgGet } from "../lib/store.js";
 
 async function handler(req) {
@@ -16,7 +16,15 @@ async function handler(req) {
   const meta = val(snapMeta, {}) || {};
   const w = val(wx, null);
 
+  // One entry per physical device: the doorbell can also fill a camera slot.
+  const seen = new Set();
+  const lowBattery = [...CAMERAS, DOORBELL]
+    .filter((c) => c.ringId && meta[c.key]?.battery != null && meta[c.key].battery <= LOW_BATTERY_PCT)
+    .filter((c) => !seen.has(c.ringId) && seen.add(c.ringId))
+    .map((c) => ({ name: c.key === "bell" ? "Doorbell" : c.name, battery: meta[c.key].battery }));
+
   return json({
+    lowBattery,
     serverTime: new Date().toISOString(),
     tz: process.env.TZ_NAME || "Australia/Adelaide",
     quietHours: { start: 23, end: 7 },

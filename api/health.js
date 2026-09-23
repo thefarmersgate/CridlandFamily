@@ -3,7 +3,7 @@
 import { requireKiosk, json } from "../lib/auth.js";
 import { cfgGet, edgeConfigApi } from "../lib/store.js";
 import { creds, calendar, photos } from "../lib/google.js";
-import { listDevices, normalizeDevices } from "../lib/ring.js";
+import { listDevices, normalizeDevices, deviceStatus, batteryOf } from "../lib/ring.js";
 
 const has = (k) => !!process.env[k];
 
@@ -79,8 +79,13 @@ async function handler(req) {
   let devices = null;
   if (ringSeed.ok) {
     try {
-      devices = normalizeDevices(await listDevices()).map((d) => ({
-        id: d.id, name: d.name, kind: d.ratio ? `${d.ratio} · ${d.online ? "online" : "offline"}` : "",
+      const list = normalizeDevices(await listDevices());
+      // Battery comes from each device's status; say plainly when Ring omits it.
+      const bat = await Promise.all(list.map((d) => deviceStatus(d.id).then(batteryOf).catch(() => null)));
+      devices = list.map((d, i) => ({
+        id: d.id, name: d.name,
+        kind: [d.ratio, d.online ? "online" : "offline", bat[i] != null ? `battery ${bat[i]}%` : "battery not reported"]
+          .filter(Boolean).join(" · "),
       }));
     } catch (e) { devices = { error: e.message }; }
   }
