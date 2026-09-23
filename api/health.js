@@ -64,6 +64,21 @@ async function handler(req) {
     } catch (e) { devices = { error: e.message }; }
   }
 
+  // Check each CAM_* id: right shape, and (once linked) one of the account's
+  // real devices. The status page shows the result against each camera row.
+  const known = Array.isArray(devices) ? new Map(devices.map((d) => [d.id, d.name])) : null;
+  const cams = Object.fromEntries(["CAM_FRONT", "CAM_DRIVE", "CAM_BACK", "CAM_SHED", "CAM_BELL"].map((k) => {
+    const v = (process.env[k] || "").trim();
+    if (!v) return [k, { ok: false, note: `${k} · not set` }];
+    if (!v.startsWith("ava1.ring.device.")) {
+      return [k, { ok: false, note: `${k} · not a Ring partner id (should start ava1.ring.device.)` }];
+    }
+    if (!known) return [k, { ok: false, note: `${k} · set, but can't be checked until Ring is linked` }];
+    return known.has(v)
+      ? [k, { ok: true, note: `${k} · matches "${known.get(v)}"` }]
+      : [k, { ok: false, note: `${k} · not one of your linked Ring devices` }];
+  }));
+
   const env = Object.fromEntries([
     "KIOSK_KEY", "SEND_PIN", "CRON_SECRET",
     "BLOB_READ_WRITE_TOKEN", "EDGE_CONFIG", "EDGE_CONFIG_ID", "VERCEL_API_TOKEN",
@@ -72,7 +87,7 @@ async function handler(req) {
     "GOOGLE_SA_KEY", "GCAL_ID", "GDRIVE_FOLDER_ID",
   ].map((k) => [k, has(k)]));
 
-  return json({ env, devices, checks: { edgeRead, edgeWrite, blob, ringSeed, google } });
+  return json({ env, devices, checks: { edgeRead, edgeWrite, blob, ringSeed, google, ...cams } });
 }
 
 // Web-standard signature: Vercel passes a Request and expects a Response.
