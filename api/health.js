@@ -3,7 +3,7 @@
 import { requireKiosk, json } from "../lib/auth.js";
 import { cfgGet, edgeConfigApi } from "../lib/store.js";
 import { creds, calendar, photos } from "../lib/google.js";
-import { listDevices, normalizeDevices, deviceStatus, batteryOf } from "../lib/ring.js";
+import { listDevices, normalizeDevices, deviceStatus, deviceResource, batteryOf } from "../lib/ring.js";
 
 const has = (k) => !!process.env[k];
 
@@ -82,10 +82,19 @@ async function handler(req) {
       const list = normalizeDevices(await listDevices());
       // Battery comes from each device's status; say plainly when Ring omits it.
       const bat = await Promise.all(list.map((d) => deviceStatus(d.id).then(batteryOf).catch(() => null)));
+      // Where no battery is found, list the field names Ring does send (names
+      // only) so a differently-named battery field can be spotted.
+      const shape = await Promise.all(list.map(async (d, i) => {
+        if (bat[i] != null) return "";
+        const [st, cap] = await Promise.all([deviceResource(d.id, "status"), deviceResource(d.id, "capabilities")]);
+        const keys = (o) => Object.keys(o || {}).join(",") || "none";
+        return ` · status fields: ${keys(st)} · capability fields: ${keys(cap)}` +
+          (cap?.battery_status ? ` · battery_status: ${JSON.stringify(cap.battery_status)}` : "");
+      }));
       devices = list.map((d, i) => ({
         id: d.id, name: d.name,
         kind: [d.ratio, d.online ? "online" : "offline", bat[i] != null ? `battery ${bat[i]}%` : "battery not reported"]
-          .filter(Boolean).join(" · "),
+          .filter(Boolean).join(" · ") + shape[i],
       }));
     } catch (e) { devices = { error: e.message }; }
   }
