@@ -2,6 +2,7 @@
 // present and whether the stores answer - never the values themselves.
 import { requireKiosk, json } from "../lib/auth.js";
 import { cfgGet, edgeConfigApi } from "../lib/store.js";
+import { creds } from "../lib/google.js";
 
 const has = (k) => !!process.env[k];
 
@@ -43,7 +44,7 @@ async function handler(req) {
     }),
     probe(async () => {
       if (!has("GOOGLE_SA_KEY")) return { ok: false, note: "not set" };
-      const j = JSON.parse(Buffer.from(process.env.GOOGLE_SA_KEY, "base64").toString("utf8"));
+      const j = creds();
       return j.client_email && j.private_key
         ? { ok: true, note: j.client_email }
         : { ok: false, note: "not a service-account key" };
