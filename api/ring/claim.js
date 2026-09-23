@@ -48,6 +48,8 @@ async function handler(req) {
     await confirmLink(t.access_token, nonce, "f***e@cridland.net.au");
     await cfgSet(REFRESH_KEY, t.refresh_token);
     await cfgSet("ring_account_id", pending.accountId);
+    // Media is only released from consent onwards; snapshots start here.
+    await cfgSet("ring_linked_at", Date.now());
     await cfgDelete("ring_pending");
     console.log("ring claim: linked", { accountId: pending.accountId });
     return json({ ok: true });
