@@ -348,7 +348,7 @@
 
   var KEY=null, S=null;
   var CAMS=[], cur=0, timer=null, holdTimer=null, held=false, motionCam=null;
-  var woken=false, wakeTimer=null, ctlTimer=null, lastPulseId=null, photoIx=0;
+  var woken=false, wakeTimer=null, ctlTimer=null, lastPulseId=null, photoIx=0, photoRun=0;
   var KIND={human:"Person", vehicle:"Vehicle", animal:"Animal"};
   var shots=g("shots"), ctls=g("ctls"), stage=null;
 
@@ -420,7 +420,7 @@
 
       if(!c.photos && c.configured) loadShot(c);
     });
-    refreshAges(); show(0); startCycle();
+    refreshAges(); show(inRotation(CAMS[0])?0:nextInRotation(0)); startCycle();
   }
 
   // Fetched rather than set as img.src so the kiosk key stays in a header and
@@ -495,10 +495,21 @@
     CAMS.forEach(function(c,n){ c.shot.classList.toggle("on",n===i); c.ctl.classList.toggle("on",n===i); });
     var c=CAMS[i];
     g("golive").hidden=!!c.photos || !c.configured;
-    if(c.photos) loadPhoto();
+    if(c.photos){ photoRun=1; loadPhoto(); }
     if(motionCam!==i){ g("tag").classList.remove("motion"); paintTag(c); }
   }
-  function advance(){ show((cur+1)%CAMS.length); }
+  // Rotation skips camera tiles that aren't wired up yet (still reachable by
+  // tapping), and stays on the album until every photo has had its turn.
+  function inRotation(c){ return c.photos || c.configured; }
+  function nextInRotation(from){
+    for(var k=1;k<=CAMS.length;k++){ var j=(from+k)%CAMS.length; if(inRotation(CAMS[j])) return j; }
+    return from;
+  }
+  function advance(){
+    var c=CAMS[cur], n=((S&&S.photos)||[]).length;
+    if(c && c.photos && photoRun<n){ photoRun++; loadPhoto(); return; }
+    show(nextInRotation(cur));
+  }
   function startCycle(){ clearInterval(timer); timer=setInterval(function(){ if(!held) advance(); },DWELL); }
   function hold(ms){ held=true; clearTimeout(holdTimer); holdTimer=setTimeout(release,ms||HOLD); }
   function release(){ held=false; clearMotion(); }
