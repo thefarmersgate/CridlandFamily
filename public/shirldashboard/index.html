@@ -348,7 +348,7 @@
 
   var KEY=null, S=null;
   var CAMS=[], cur=0, timer=null, holdTimer=null, held=false, motionCam=null;
-  var woken=false, wakeTimer=null, ctlTimer=null, lastPulseId=null, photoIx=0, photoRun=0;
+  var woken=false, wakeTimer=null, ctlTimer=null, lastPulseId=null, photoIx=0, nextPhoto=null;
   var KIND={human:"Person", vehicle:"Vehicle", animal:"Animal"};
   var shots=g("shots"), ctls=g("ctls"), stage=null;
 
@@ -420,7 +420,7 @@
 
       if(!c.photos && c.configured) loadShot(c);
     });
-    refreshAges(); show(inRotation(CAMS[0])?0:nextInRotation(0)); startCycle();
+    refreshAges(); show(inRotation(CAMS[0])?0:nextInRotation(0)); startCycle(); preloadPhoto();
   }
 
   // Fetched rather than set as img.src so the kiosk key stays in a header and
@@ -446,19 +446,27 @@
       .finally(function(){ c._busy=false; });
   }
 
-  function loadPhoto(){
-    var list=(S&&S.photos)||[]; if(!list.length) return;
+  // The next album photo is fetched in the background while the cameras are
+  // showing, so its turn starts with the picture already in memory.
+  function fetchPhoto(){
+    var list=(S&&S.photos)||[]; if(!list.length) return null;
     var p=list[photoIx%list.length]; photoIx++;
+    return api("/api/snapshot/"+encodeURIComponent("photo:"+p.id))
+      .then(function(r){ return r.ok?r.blob():null; }).catch(function(){ return null; });
+  }
+  function preloadPhoto(){ if(!nextPhoto) nextPhoto=fetchPhoto(); }
+  function loadPhoto(){
     var c=CAMS[CAMS.length-1];
-    api("/api/snapshot/"+encodeURIComponent("photo:"+p.id)).then(function(r){
-      return r.ok?r.blob():null;
-    }).then(function(b){
+    var pending=nextPhoto||fetchPhoto(); nextPhoto=null;
+    if(!pending) return;
+    pending.then(function(b){
       if(!b) return;
       var img=c.shot.querySelector("img"); if(!img) return;
       var old=img.src; img.src=URL.createObjectURL(b);
       if(old && old.indexOf("blob:")===0) setTimeout(function(){ URL.revokeObjectURL(old); },1000);
-    }).catch(function(){});
+    }).finally(function(){ preloadPhoto(); });
   }
+
 
   function ageMin(c){
     if(!c.capturedAt) return null;
@@ -500,21 +508,17 @@
     CAMS.forEach(function(c,n){ c.shot.classList.toggle("on",n===i); c.ctl.classList.toggle("on",n===i); });
     var c=CAMS[i];
     g("golive").hidden=!!c.photos || !c.configured;
-    if(c.photos){ photoRun=1; loadPhoto(); }
+    if(c.photos) loadPhoto();
     if(motionCam!==i){ g("tag").classList.remove("motion"); paintTag(c); }
   }
   // Rotation skips camera tiles that aren't wired up yet (still reachable by
-  // tapping), and stays on the album until every photo has had its turn.
+  // tapping). The album shows one photo per lap, a different one each time.
   function inRotation(c){ return c.photos || c.configured; }
   function nextInRotation(from){
     for(var k=1;k<=CAMS.length;k++){ var j=(from+k)%CAMS.length; if(inRotation(CAMS[j])) return j; }
     return from;
   }
-  function advance(){
-    var c=CAMS[cur], n=((S&&S.photos)||[]).length;
-    if(c && c.photos && photoRun<n){ photoRun++; loadPhoto(); return; }
-    show(nextInRotation(cur));
-  }
+  function advance(){ show(nextInRotation(cur)); }
   function startCycle(){ clearInterval(timer); timer=setInterval(function(){ if(!held) advance(); },DWELL); }
   function hold(ms){ held=true; clearTimeout(holdTimer); holdTimer=setTimeout(release,ms||HOLD); }
   function release(){ held=false; clearMotion(); }
