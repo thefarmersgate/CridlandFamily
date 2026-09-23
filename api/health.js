@@ -16,9 +16,11 @@ async function handler(req) {
 
   const [edgeRead, edgeWrite, blob, ringSeed, google] = await Promise.all([
     probe(async () => {
-      if (!has("EDGE_CONFIG")) return { ok: false, note: "EDGE_CONFIG not set" };
+      if (!has("EDGE_CONFIG") && !(has("EDGE_CONFIG_ID") && has("VERCEL_API_TOKEN"))) {
+        return { ok: false, note: "needs EDGE_CONFIG, or EDGE_CONFIG_ID with VERCEL_API_TOKEN" };
+      }
       await cfgGet("ring_refresh_token");
-      return { ok: true };
+      return { ok: true, note: has("EDGE_CONFIG") ? "via connection string" : "via API" };
     }),
     // A read of the store's metadata proves the id and token pair can reach it,
     // without writing anything.
@@ -39,7 +41,6 @@ async function handler(req) {
       return r.ok ? { ok: true } : { ok: false, note: `Blob said ${r.status}` };
     }),
     probe(async () => {
-      if (!has("EDGE_CONFIG")) return { ok: false, note: "needs Edge Config first" };
       return (await cfgGet("ring_refresh_token")) ? { ok: true } : { ok: false, note: "not seeded yet" };
     }),
     probe(async () => {
