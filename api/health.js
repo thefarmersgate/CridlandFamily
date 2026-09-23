@@ -1,7 +1,7 @@
 // Setup checklist for /shirldashboard/status. Reports which settings are
 // present and whether the stores answer - never the values themselves.
 import { requireKiosk, json } from "../lib/auth.js";
-import { cfgGet } from "../lib/store.js";
+import { cfgGet, edgeConfigApi } from "../lib/store.js";
 
 const has = (k) => !!process.env[k];
 
@@ -25,7 +25,7 @@ async function handler(req) {
       if (!has("EDGE_CONFIG_ID") || !has("VERCEL_API_TOKEN")) {
         return { ok: false, note: "EDGE_CONFIG_ID and VERCEL_API_TOKEN both needed" };
       }
-      const r = await fetch(`https://api.vercel.com/v1/edge-config/${process.env.EDGE_CONFIG_ID}`, {
+      const r = await fetch(edgeConfigApi(process.env.EDGE_CONFIG_ID).replace("%s", ""), {
         headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}` },
       });
       return r.ok ? { ok: true } : { ok: false, note: `Vercel said ${r.status}` };
