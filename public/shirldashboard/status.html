@@ -48,6 +48,15 @@
   </div>
   <p class="err" id="err" hidden></p>
   <div id="out"></div>
+
+  <section id="pg">
+    <h2>Find Ring device ids</h2>
+    <p class="lede">Paste an access token from the Ring Playground. It is used once to list your devices and is not saved.</p>
+    <p><input id="pgtok" type="password" autocomplete="off" placeholder="Playground access token"></p>
+    <button id="pggo" type="button">List devices</button>
+    <p class="err" id="pgerr" hidden></p>
+    <ul id="pgout" style="margin-top:14px"></ul>
+  </section>
   <button id="again" type="button" hidden>Check again</button>
 </div>
 <script>
@@ -134,6 +143,24 @@
   g("go").addEventListener("click",function(){ var v=g("key").value.trim(); if(v) check(v); });
   g("key").addEventListener("keydown",function(e){ if(e.key==="Enter") g("go").click(); });
   g("again").addEventListener("click",function(){ var k=readKey(); if(k) check(k); });
+
+  g("pggo").addEventListener("click",function(){
+    var t=g("pgtok").value.trim(), key=readKey(); if(!t) return;
+    g("pgerr").hidden=true; g("pgout").innerHTML="";
+    if(!key){ g("pgerr").textContent="Enter the setup key at the top first."; g("pgerr").hidden=false; return; }
+    fetch("/api/ring/devices",{method:"POST",headers:{"X-Kiosk-Key":key,"Content-Type":"application/json"},body:JSON.stringify({token:t}),cache:"no-store"})
+      .then(function(r){ return r.json().then(function(j){ if(!r.ok) throw new Error(j.error+(j.detail?" - "+j.detail:"")); return j; }); })
+      .then(function(j){
+        if(!j.devices.length){ g("pgerr").textContent="Ring returned no devices."; g("pgerr").hidden=false; return; }
+        j.devices.forEach(function(d){
+          var li=document.createElement("li"); li.className="ok";
+          li.innerHTML='<span class="dot"></span><span><span class="nm"></span><br><span class="note"></span></span>';
+          li.querySelector(".nm").textContent=d.name+(d.kind?" ("+d.kind+")":"");
+          li.querySelector(".note").textContent="id "+d.id+(d.video?" · "+d.video+" · aspect "+d.aspect:"")+(d.battery!=null?" · battery "+d.battery+"%":"");
+          g("pgout").appendChild(li);
+        });
+      }).catch(function(e){ g("pgerr").textContent=e.message; g("pgerr").hidden=false; });
+  });
 
   var k=readKey();
   if(k) check(k); else g("gate").hidden=false;
