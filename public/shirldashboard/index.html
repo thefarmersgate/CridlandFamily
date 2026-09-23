@@ -65,6 +65,9 @@
   .rd-next{font-size:clamp(20px,3vh,29px);font-weight:600;color:var(--ink);
     text-shadow:0 2px 14px rgba(0,0,0,.95);max-width:34ch}
   .rd-next b{color:var(--accent);font-weight:700}
+  .rd-upnext{font-size:clamp(17px,2.5vh,24px);font-weight:600;color:var(--ink-2);
+    text-shadow:0 2px 14px rgba(0,0,0,.95);max-width:44ch}
+  .rd-upnext b{color:var(--accent);font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.85em}
 
   /* ---------- quiet labels at the top ---------- */
   .tag{position:absolute;top:30px;display:inline-flex;align-items:center;gap:10px;
@@ -145,6 +148,21 @@
   .connect p{font-size:22px;color:var(--ink-2);font-weight:600;text-align:center;padding:0 20px}
   .live-foot{display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:19px;color:var(--ink-3);font-weight:500}
 
+  /* ---------- week view (tap the calendar lines) ---------- */
+  .rd-cal{pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .week-card{width:min(1240px,100%);height:100%;max-height:820px;display:flex;flex-direction:column;gap:16px}
+  .week-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+  .wk-day{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 10px;
+    display:flex;flex-direction:column;gap:8px;min-height:0;overflow:hidden}
+  .wk-day.today{border-color:var(--accent)}
+  .wk-head{font-weight:700;font-size:19px;color:var(--ink-2);letter-spacing:.04em;text-transform:uppercase}
+  .wk-head .n{display:block;font-family:var(--disp);font-weight:300;font-size:38px;line-height:1;color:var(--ink);letter-spacing:0}
+  .wk-day.today .wk-head,.wk-day.today .wk-head .n{color:var(--accent)}
+  .wk-ev{font-size:18px;line-height:1.25;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+  .wk-ev .tm{display:block;font-size:15px;font-weight:700;color:var(--accent)}
+  .wk-ev.all{background:rgba(242,165,74,.16);border-left:4px solid var(--accent);border-radius:6px;padding:5px 8px}
+  .wk-none{font-size:16px;color:var(--ink-3);font-weight:500}
+
   .ding{z-index:50;filter:none;flex-direction:column;gap:18px;
     background:radial-gradient(120% 90% at 50% 38%,rgba(70,12,10,.99),rgba(5,3,3,.996))}
   .ding-banner{display:flex;align-items:center;gap:20px;justify-content:center}
@@ -216,7 +234,10 @@
           <div class="c" id="wxcond">Partly cloudy</div>
         </div>
       </div>
-      <div class="rd-next" id="next">&nbsp;</div>
+      <div class="rd-cal" id="calbtn" role="button" aria-label="Show this week's calendar">
+        <div class="rd-next" id="next">&nbsp;</div>
+        <div class="rd-upnext" id="upnext" hidden></div>
+      </div>
     </div>
   </div>
 
@@ -247,6 +268,16 @@
       <div class="connect" id="liveconnect"><div class="spinner"></div><p id="liveprogress">Connecting to the camera&hellip;</p></div>
     </div>
     <div class="live-foot"><span>Live view</span><span id="livetimer">Ends after 60 seconds</span></div>
+  </div>
+</div>
+
+<div class="veil" id="week" hidden>
+  <div class="week-card">
+    <div class="live-head">
+      <div class="live-title"><h2>This week</h2></div>
+      <button class="btn" id="weekclose">Close</button>
+    </div>
+    <div class="week-grid" id="weekgrid"></div>
   </div>
 </div>
 
@@ -615,21 +646,38 @@
     var d=new Date(iso);
     return new Intl.DateTimeFormat("en-AU",{hour:"numeric",minute:"2-digit",hour12:true,timeZone:TZ}).format(d).toLowerCase();
   }
+  // Local calendar date as YYYY-MM-DD, to compare with all-day events, which
+  // Google sends as bare dates with no time zone.
+  function dayKey(d){ return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+  function eventDay(e){ return e.allDay ? String(e.startsAt).slice(0,10) : dayKey(new Date(e.startsAt)); }
+  function dayLabel(key){
+    var p=key.split("-"), d=new Date(+p[0],+p[1]-1,+p[2]);
+    var t=new Date(); t.setHours(0,0,0,0);
+    var days=Math.round((d-t)/864e5);
+    if(days===1) return "Tomorrow";
+    var opts=days<7?{weekday:"long"}:{weekday:"short",day:"numeric",month:"short"};
+    return d.toLocaleDateString("en-AU",opts);
+  }
   function paintDay(){
-    var cal=(S&&S.calendar)||[], now=Date.now(), nxt=null, tom=null;
-    var endToday=new Date(); endToday.setHours(23,59,59,999);
+    var cal=(S&&S.calendar)||[], now=Date.now(), today=dayKey(new Date()), nxt=null, up=null;
     for(var i=0;i<cal.length;i++){
-      var e=cal[i];
-      if(e.allDay) continue;
-      var t=Date.parse(e.startsAt);
-      if(!t) continue;
-      if(t>now && t<=endToday.getTime()){ nxt=e; break; }
-      if(t>endToday.getTime() && !tom) tom=e;
+      var e=cal[i], day=eventDay(e);
+      if(day===today){
+        if(!nxt && !e.allDay && Date.parse(e.startsAt)>now) nxt=e;
+      } else if(day>today && !up){ up=e; }
     }
     if(nxt) g("next").innerHTML="<b>"+fmtTime(nxt.startsAt)+"</b> &nbsp;"+esc(nxt.title);
-    else if(tom) g("next").innerHTML="Tomorrow &nbsp;<b>"+fmtTime(tom.startsAt)+"</b> &nbsp;"+esc(tom.title);
     else g("next").textContent="Nothing else on today";
+
+    // Next up: the first event on a later day, all-day ones (birthdays) included.
+    var u=g("upnext");
+    if(up){
+      var when=dayLabel(eventDay(up))+(up.allDay?"":" "+fmtTime(up.startsAt));
+      u.innerHTML="<b>Next up</b> &nbsp;"+esc(when)+" &nbsp;·&nbsp; "+esc(up.title);
+      u.hidden=false;
+    } else u.hidden=true;
   }
+
   function esc(s){ var d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 
   function tick(){
@@ -756,6 +804,7 @@
   /* ---------------- doorbell ---------------- */
   var dingT=[];
   function openDing(ev){
+    closeWeek();
     dingT.forEach(clearTimeout); dingT=[];
     wakeUp(); hold(MOTION_HOLD);
     g("ding").hidden=false;
@@ -776,6 +825,38 @@
     dingT.push(setTimeout(closeDing,45000));
     g("dingclose").focus();
   }
+  /* ---------------- week view ---------------- */
+  var weekT=null;
+  function openWeek(){
+    var cal=(S&&S.calendar)||[], grid=g("weekgrid"); grid.innerHTML="";
+    var t=new Date(); t.setHours(0,0,0,0);
+    for(var d=0; d<7; d++){
+      var day=new Date(t.getTime()); day.setDate(t.getDate()+d);
+      var key=dayKey(day), col=document.createElement("div");
+      col.className="wk-day"+(d===0?" today":"");
+      var h=document.createElement("div"); h.className="wk-head";
+      h.textContent=d===0?"Today":day.toLocaleDateString("en-AU",{weekday:"short"});
+      var n=document.createElement("span"); n.className="n"; n.textContent=day.getDate(); h.appendChild(n);
+      col.appendChild(h);
+      var evs=cal.filter(function(e){ return eventDay(e)===key; })
+        .sort(function(a,b){ return (b.allDay?1:0)-(a.allDay?1:0) || String(a.startsAt).localeCompare(String(b.startsAt)); });
+      if(!evs.length){ var none=document.createElement("div"); none.className="wk-none"; none.textContent="Nothing on"; col.appendChild(none); }
+      evs.forEach(function(e){
+        var el=document.createElement("div"); el.className="wk-ev"+(e.allDay?" all":"");
+        if(!e.allDay){ var tm=document.createElement("span"); tm.className="tm"; tm.textContent=fmtTime(e.startsAt); el.appendChild(tm); }
+        el.appendChild(document.createTextNode(e.title));
+        col.appendChild(el);
+      });
+      grid.appendChild(col);
+    }
+    g("week").hidden=false; hold(HOLD);
+    clearTimeout(weekT); weekT=setTimeout(closeWeek,60000);   // back to the frame on its own
+  }
+  function closeWeek(){ clearTimeout(weekT); g("week").hidden=true; }
+  g("calbtn").addEventListener("click",function(e){ e.stopPropagation(); openWeek(); });
+  g("weekclose").addEventListener("click",closeWeek);
+  g("week").addEventListener("click",function(e){ if(e.target.id==="week") closeWeek(); });
+
   function closeDing(){ dingT.forEach(clearTimeout); dingT=[]; g("ding").hidden=true; }
   g("dingclose").addEventListener("click",closeDing);
   g("dinglive").addEventListener("click",function(){

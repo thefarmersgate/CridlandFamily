@@ -62,7 +62,7 @@ async function handler(req) {
       probe(async () => {
         if (!has("GCAL_ID")) return { ok: false, note: "GCAL_ID not set" };
         const ev = await calendar();
-        return { ok: true, note: `${ev.length} event${ev.length === 1 ? "" : "s"} in the next 14 days` };
+        return { ok: true, note: `${ev.length} event${ev.length === 1 ? "" : "s"} in the next 60 days` };
       }),
       probe(async () => {
         if (!has("GDRIVE_FOLDER_ID")) return { ok: false, note: "GDRIVE_FOLDER_ID not set" };
