@@ -2,7 +2,7 @@
 // present and whether the stores answer - never the values themselves.
 import { requireKiosk, json } from "../lib/auth.js";
 import { cfgGet, edgeConfigApi } from "../lib/store.js";
-import { creds } from "../lib/google.js";
+import { creds, calendar, photos } from "../lib/google.js";
 import { listDevices, normalizeDevices } from "../lib/ring.js";
 
 const has = (k) => !!process.env[k];
@@ -53,6 +53,27 @@ async function handler(req) {
     }),
   ]);
 
+  // With a valid key, actually read the calendar and the photo folder so a
+  // missing share shows up here rather than as an empty frame.
+  let gcal = { ok: false, note: "needs the service-account key" };
+  let gdrive = { ok: false, note: "needs the service-account key" };
+  if (google.ok) {
+    [gcal, gdrive] = await Promise.all([
+      probe(async () => {
+        if (!has("GCAL_ID")) return { ok: false, note: "GCAL_ID not set" };
+        const ev = await calendar();
+        return { ok: true, note: `${ev.length} event${ev.length === 1 ? "" : "s"} in the next 14 days` };
+      }),
+      probe(async () => {
+        if (!has("GDRIVE_FOLDER_ID")) return { ok: false, note: "GDRIVE_FOLDER_ID not set" };
+        const ph = await photos(60);
+        return ph.length
+          ? { ok: true, note: `${ph.length} photo${ph.length === 1 ? "" : "s"} found` }
+          : { ok: false, note: "folder readable but no photos in it (or not shared with the service account)" };
+      }),
+    ]);
+  }
+
   // Once Ring is linked, list the devices so their ids can be copied into the
   // CAM_* settings. One API call, only when this page is opened.
   let devices = null;
@@ -87,7 +108,7 @@ async function handler(req) {
     "GOOGLE_SA_KEY", "GCAL_ID", "GDRIVE_FOLDER_ID",
   ].map((k) => [k, has(k)]));
 
-  return json({ env, devices, checks: { edgeRead, edgeWrite, blob, ringSeed, google, ...cams } });
+  return json({ env, devices, checks: { edgeRead, edgeWrite, blob, ringSeed, google, gcal, gdrive, ...cams } });
 }
 
 // Web-standard signature: Vercel passes a Request and expects a Response.
