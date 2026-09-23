@@ -6,7 +6,7 @@ import { requireKiosk, json, routeKey } from "../../lib/auth.js";
 import { byKey } from "../../lib/cameras.js";
 import { whepStart, whepStop } from "../../lib/ring.js";
 
-export default async function handler(req) {
+async function handler(req) {
   const deny = requireKiosk(req);
   if (deny) return deny;
   const cam = byKey(routeKey(req));
@@ -36,3 +36,6 @@ export default async function handler(req) {
 
   return json({ error: "method not allowed" }, 405);
 }
+
+// Web-standard signature: Vercel passes a Request and expects a Response.
+export default { fetch: handler };

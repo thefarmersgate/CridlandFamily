@@ -4,7 +4,7 @@ import { byKey, CAPTURE_INTERVAL_MIN } from "../../lib/cameras.js";
 import { snapshot } from "../../lib/ring.js";
 import { photoBytes } from "../../lib/google.js";
 
-export default async function handler(req) {
+async function handler(req) {
   const deny = requireKiosk(req);
   if (deny) return deny;
   const key = routeKey(req);
@@ -37,3 +37,6 @@ export default async function handler(req) {
     return json({ error: "ring unavailable" }, 502);
   }
 }
+
+// Web-standard signature: Vercel passes a Request and expects a Response.
+export default { fetch: handler };

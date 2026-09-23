@@ -5,7 +5,7 @@ import { accessToken, deviceStatus } from "../../lib/ring.js";
 import { CAMERAS, DOORBELL } from "../../lib/cameras.js";
 import { cfgGet, cfgSet } from "../../lib/store.js";
 
-export default async function handler(req) {
+async function handler(req) {
   const deny = requireCron(req);
   if (deny) return deny;
   const out = { token: "skipped", status: {} };
@@ -31,3 +31,6 @@ export default async function handler(req) {
 
   return json(out);
 }
+
+// Web-standard signature: Vercel passes a Request and expects a Response.
+export default { fetch: handler };

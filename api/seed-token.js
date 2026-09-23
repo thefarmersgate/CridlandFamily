@@ -4,7 +4,7 @@
 import { requireKiosk, json } from "../lib/auth.js";
 import { cfgGet, cfgSet } from "../lib/store.js";
 
-export default async function handler(req) {
+async function handler(req) {
   const deny = requireKiosk(req);
   if (deny) return deny;
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -20,3 +20,6 @@ export default async function handler(req) {
   await cfgSet("ring_refresh_token", body.refresh_token);
   return json({ ok: true });
 }
+
+// Web-standard signature: Vercel passes a Request and expects a Response.
+export default { fetch: handler };

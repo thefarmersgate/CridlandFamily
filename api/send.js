@@ -3,7 +3,7 @@ import { blobPut, cfgSet } from "../lib/store.js";
 
 const MAX_AGE_H = 12;
 
-export default async function handler(req) {
+async function handler(req) {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   let body = {};
   try { body = await req.json(); } catch { /* fall through to validation */ }
@@ -22,3 +22,6 @@ export default async function handler(req) {
     return json({ error: "Could not reach the frame. Try again." }, 502);
   }
 }
+
+// Web-standard signature: Vercel passes a Request and expects a Response.
+export default { fetch: handler };

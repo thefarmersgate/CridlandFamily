@@ -4,7 +4,7 @@ import { calendar, photos, googleConfigured } from "../lib/google.js";
 import { CAMERAS, DOORBELL, STALE_MIN, CAPTURE_INTERVAL_MIN } from "../lib/cameras.js";
 import { cfgGet } from "../lib/store.js";
 
-export default async function handler(req) {
+async function handler(req) {
   const deny = requireKiosk(req);
   if (deny) return deny;
 
@@ -40,3 +40,6 @@ export default async function handler(req) {
     messageUrl: val(msgUrl, null),
   });
 }
+
+// Web-standard signature: Vercel passes a Request and expects a Response.
+export default { fetch: handler };

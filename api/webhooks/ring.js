@@ -5,7 +5,7 @@ import { verifyRingSignature, json } from "../../lib/auth.js";
 import { byRingId } from "../../lib/cameras.js";
 import { blobPut, cfgSet } from "../../lib/store.js";
 
-export default async function handler(req) {
+async function handler(req) {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   // req.text() gives the exact bytes Ring signed. Parsing first and
@@ -36,3 +36,6 @@ export default async function handler(req) {
 
   return json({ ok: true });
 }
+
+// Web-standard signature: Vercel passes a Request and expects a Response.
+export default { fetch: handler };

@@ -373,6 +373,7 @@
     KEY=v;
     api("/api/state").then(function(r){
       if(r.status===401){ openGate("That key was not accepted."); KEY=null; return; }
+      if(!r.ok){ openGate("The server had a problem ("+r.status+"). Try again shortly."); KEY=null; return; }
       writeKey(v); g("gate").hidden=true; boot();
     }).catch(function(){ openGate("Could not reach the internet."); });
   });

@@ -4,7 +4,7 @@ import { requireCron, json } from "../../lib/auth.js";
 import { weather } from "../../lib/weather.js";
 import { calendar, photos, googleConfigured } from "../../lib/google.js";
 
-export default async function handler(req) {
+async function handler(req) {
   const deny = requireCron(req);
   if (deny) return deny;
   const out = {};
@@ -17,3 +17,6 @@ export default async function handler(req) {
   else out.google = "not configured yet";
   return json(out);
 }
+
+// Web-standard signature: Vercel passes a Request and expects a Response.
+export default { fetch: handler };
