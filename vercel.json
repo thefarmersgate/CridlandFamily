@@ -57,5 +57,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/shirldashboard/ring-linked",
+      "destination": "/api/ring/start"
+    }
   ]
 }
