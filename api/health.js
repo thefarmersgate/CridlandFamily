@@ -3,7 +3,7 @@
 import { requireKiosk, json } from "../lib/auth.js";
 import { cfgGet, edgeConfigApi } from "../lib/store.js";
 import { creds } from "../lib/google.js";
-import { listDevices } from "../lib/ring.js";
+import { listDevices, normalizeDevices } from "../lib/ring.js";
 
 const has = (k) => !!process.env[k];
 
@@ -58,12 +58,8 @@ async function handler(req) {
   let devices = null;
   if (ringSeed.ok) {
     try {
-      const body = await listDevices();
-      const list = body.devices || body.items || body.data || (Array.isArray(body) ? body : []);
-      devices = list.map((d) => ({
-        id: d.id || d.device_id,
-        name: d.name || d.description || "(unnamed)",
-        kind: d.kind || d.device_type || d.type || "",
+      devices = normalizeDevices(await listDevices()).map((d) => ({
+        id: d.id, name: d.name, kind: d.ratio ? `${d.ratio} · ${d.online ? "online" : "offline"}` : "",
       }));
     } catch (e) { devices = { error: e.message }; }
   }

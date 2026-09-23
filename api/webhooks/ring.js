@@ -20,14 +20,24 @@ async function handler(req) {
   let ev;
   try { ev = JSON.parse(raw); } catch { return json({ error: "bad json" }, 400); }
 
-  const cam = byRingId(ev.device_id);
+  // v1.1: { meta: { request_id, account_id }, data: { type, attributes: { source, timestamp, sub_type } } }
+  const type = ev.data?.type;
+  const a = ev.data?.attributes || {};
+  if (type !== "button_press" && type !== "motion_detected") {
+    // Lifecycle events (device_added, app_integration_added, ...) need no
+    // action here. Always 200: repeated 4xx makes Ring disable the webhook.
+    console.log("ring webhook:", type);
+    return json({ ok: true });
+  }
+
+  const cam = byRingId(a.source);
   const pulse = {
-    id: `${ev.event_type}:${ev.device_id}:${ev.timestamp}`,
-    type: ev.event_type,                        // button_press | motion_detected
+    id: ev.meta?.request_id || `${type}:${a.source}:${a.timestamp}`,
+    type,                                       // button_press | motion_detected
     camera: cam?.key ?? null,
     name: cam?.name ?? null,
-    subType: ev.attributes?.sub_type ?? null,   // human | vehicle | animal
-    at: ev.timestamp || Date.now(),
+    subType: a.sub_type ?? null,                // human | vehicle | motion | other_motion
+    at: a.timestamp || Date.now(),
   };
   try {
     const put = await blobPut("pulse.json", pulse);

@@ -2,6 +2,7 @@
 // the status page, so device ids can be found before account linking works.
 // The token is used for this one request and never stored or logged.
 import { json, requireKiosk } from "../../lib/auth.js";
+import { normalizeDevices } from "../../lib/ring.js";
 
 const BASE = "https://api.amazonvision.com";
 
@@ -14,27 +15,14 @@ async function handler(req) {
   try { token = String((await req.json()).token || "").trim().replace(/^Bearer\s+/i, ""); } catch {}
   if (!token) return json({ error: "token required" }, 400);
 
-  const r = await fetch(`${BASE}/v1/devices?include=status,capabilities,location`, {
+  const r = await fetch(`${BASE}/v1/devices?include=status,capabilities`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) return json({ error: `Ring said ${r.status}`, detail: (await r.text()).slice(0, 300) }, 502);
 
-  const body = await r.json();
-  const list = body.devices || body.items || body.data || (Array.isArray(body) ? body : []);
+  const devices = normalizeDevices(await r.json());
   return json({
-    devices: list.map((d) => {
-      const w = d.capabilities?.video?.width ?? d.video?.width ?? null;
-      const h = d.capabilities?.video?.height ?? d.video?.height ?? null;
-      return {
-        id: d.id || d.device_id,
-        name: d.name || d.description || "(unnamed)",
-        kind: d.kind || d.device_type || d.type || "",
-        video: w && h ? `${w}x${h}` : null,
-        aspect: w && h ? (Math.abs(w / h - 1) < 0.02 ? "1/1" : "16/9") : null,
-        battery: d.status?.battery_level ?? d.battery_level ?? null,
-      };
-    }),
-    raw: list.length ? undefined : body,
+    devices: devices.map((d) => ({ id: d.id, name: d.name, kind: d.online === false ? "offline" : "", video: d.ratio, aspect: d.aspect })),
   });
 }
 

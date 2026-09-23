@@ -20,8 +20,8 @@ async function handler(req) {
     if (!c.ringId) continue;
     try {
       const s = await deviceStatus(c.ringId);
-      const online = s?.online ?? s?.status !== "offline";
-      const battery = s?.battery_level ?? s?.battery ?? null;
+      const online = s ? s.online !== false : false;
+      const battery = s?.battery_status?.percentage ?? null;
       meta[c.key] = { ...(meta[c.key] || {}), online, battery, checkedAt: Date.now() };
       out.status[c.key] = { online, battery };
       if (battery !== null && battery < 20) console.warn(`LOW BATTERY ${c.name}: ${battery}%`);

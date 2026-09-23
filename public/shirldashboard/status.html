@@ -156,7 +156,7 @@
           var li=document.createElement("li"); li.className="ok";
           li.innerHTML='<span class="dot"></span><span><span class="nm"></span><br><span class="note"></span></span>';
           li.querySelector(".nm").textContent=d.name+(d.kind?" ("+d.kind+")":"");
-          li.querySelector(".note").textContent="id "+d.id+(d.video?" · "+d.video+" · aspect "+d.aspect:"")+(d.battery!=null?" · battery "+d.battery+"%":"");
+          li.querySelector(".note").textContent="id "+d.id+(d.video?" · ratio "+d.video+" · BELL_ASPECT "+d.aspect:"");
           g("pgout").appendChild(li);
         });
       }).catch(function(e){ g("pgerr").textContent=e.message; g("pgerr").hidden=false; });
