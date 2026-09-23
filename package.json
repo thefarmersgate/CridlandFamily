@@ -1,0 +1,7 @@
+{
+  "name": "cridland-family",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "dependencies": {}
+}
