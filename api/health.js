@@ -3,6 +3,7 @@
 import { requireKiosk, json } from "../lib/auth.js";
 import { cfgGet, edgeConfigApi } from "../lib/store.js";
 import { creds } from "../lib/google.js";
+import { listDevices } from "../lib/ring.js";
 
 const has = (k) => !!process.env[k];
 
@@ -52,6 +53,21 @@ async function handler(req) {
     }),
   ]);
 
+  // Once Ring is linked, list the devices so their ids can be copied into the
+  // CAM_* settings. One API call, only when this page is opened.
+  let devices = null;
+  if (ringSeed.ok) {
+    try {
+      const body = await listDevices();
+      const list = body.devices || body.items || body.data || (Array.isArray(body) ? body : []);
+      devices = list.map((d) => ({
+        id: d.id || d.device_id,
+        name: d.name || d.description || "(unnamed)",
+        kind: d.kind || d.device_type || d.type || "",
+      }));
+    } catch (e) { devices = { error: e.message }; }
+  }
+
   const env = Object.fromEntries([
     "KIOSK_KEY", "SEND_PIN", "CRON_SECRET",
     "BLOB_READ_WRITE_TOKEN", "EDGE_CONFIG", "EDGE_CONFIG_ID", "VERCEL_API_TOKEN",
@@ -60,7 +76,7 @@ async function handler(req) {
     "GOOGLE_SA_KEY", "GCAL_ID", "GDRIVE_FOLDER_ID",
   ].map((k) => [k, has(k)]));
 
-  return json({ env, checks: { edgeRead, edgeWrite, blob, ringSeed, google } });
+  return json({ env, devices, checks: { edgeRead, edgeWrite, blob, ringSeed, google } });
 }
 
 // Web-standard signature: Vercel passes a Request and expects a Response.

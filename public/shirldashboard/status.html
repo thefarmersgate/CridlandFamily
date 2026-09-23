@@ -66,7 +66,6 @@
     {title:"Step 2 · Storage", rows:[
       {env:"BLOB_READ_WRITE_TOKEN", name:"Blob store connected"},
       {check:"blob", name:"Blob store answers"},
-      {env:"EDGE_CONFIG", name:"Edge Config connected"},
       {check:"edgeRead", name:"Edge Config answers"},
       {env:"EDGE_CONFIG_ID", name:"Edge Config ID"},
       {env:"VERCEL_API_TOKEN", name:"Vercel token"},
@@ -105,6 +104,20 @@
       });
       sec.appendChild(ul); out.appendChild(sec);
     });
+    if(j.devices){
+      var sec=document.createElement("section");
+      var h=document.createElement("h2"); h.textContent="Ring devices · copy each id into its CAM_ setting"; sec.appendChild(h);
+      var ul=document.createElement("ul");
+      if(j.devices.error){ var li=document.createElement("li"); li.className="bad"; li.textContent=j.devices.error; ul.appendChild(li); }
+      else j.devices.forEach(function(d){
+        var li=document.createElement("li"); li.className="ok";
+        li.innerHTML='<span class="dot"></span><span><span class="nm"></span><br><span class="note"></span></span>';
+        li.querySelector(".nm").textContent=d.name+(d.kind?" ("+d.kind+")":"");
+        li.querySelector(".note").textContent=d.id;
+        ul.appendChild(li);
+      });
+      sec.appendChild(ul); out.appendChild(sec);
+    }
     g("again").hidden=false;
   }
 
